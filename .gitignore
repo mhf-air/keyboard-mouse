@@ -1,0 +1,6 @@
+*.o
+lib/*
+.pkg/*
+compile_commands.json
+
+.a
