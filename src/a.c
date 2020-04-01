@@ -4,7 +4,61 @@
 
 #include <X11/Xlib.h>
 
-#include "a.h"
+void moveMouse(Display* display, int dx, int dy) {
+	XWarpPointer(display, None, None, 0, 0, 0, 0, dx, dy);
+}
+
+void keyboard(Display* display) {
+	long mask = KeyPressMask | KeyReleaseMask | ButtonPressMask |
+		ButtonReleaseMask | FocusChangeMask;
+	Window root = DefaultRootWindow(display);
+
+	Window focused;
+	int revert_to;
+	XGetInputFocus(display, &focused, &revert_to);
+	XSelectInput(display, focused, mask);
+	printf("start %ld\n", focused);
+
+	XEvent event;
+	while (true) {
+		printf("before\n");
+		XNextEvent(display, &event);
+		printf("after\n");
+		// printf("%d\n", event.type);
+
+		switch (event.type) {
+			case KeyPress:
+				printf("KeyPress\n");
+				break;
+			case KeyRelease:
+				printf("KeyRelease\n");
+				break;
+			case ButtonPress:
+				printf("ButtonPress\n");
+				break;
+			case ButtonRelease:
+				printf("ButtonRelease\n");
+				break;
+			case FocusIn:
+				XGetInputFocus(display, &focused, &revert_to);
+				printf("FocusIn %ld %ld\n", event.xfocus.window, focused);
+				XSelectInput(display, focused, mask);
+				// XSelectInput(display, event.xfocus.window, mask);
+				break;
+			case FocusOut:
+				if (focused != root) {
+					XSelectInput(display, focused, 0);
+				}
+				XGetInputFocus(display, &focused, &revert_to);
+				printf("FocusOut %ld -> %ld\n", event.xfocus.window, focused);
+				if (focused == PointerRoot) {
+					focused = root;
+				}
+				XSelectInput(display, focused, mask);
+				break;
+		}
+	}
+}
 
 int main(void) {
 	Display* display = XOpenDisplay(NULL);
@@ -21,40 +75,4 @@ int main(void) {
 
 	XCloseDisplay(display);
 	return 0;
-}
-
-void moveMouse(Display* display, int dx, int dy) {
-	XWarpPointer(display, None, None, 0, 0, 0, 0, dx, dy);
-}
-
-void keyboard(Display* display) {
-	Window root = DefaultRootWindow(display);
-
-	// XGrabKeyboard(display, root, true, GrabModeAsync, GrabModeAsync,
-	// CurrentTime);
-
-	XSelectInput(
-		display, root,
-		KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask);
-
-	XEvent ev;
-	while (true) {
-		XNextEvent(display, &ev);
-		printf("%d\n", ev.type);
-		switch (ev.type) {
-			case KeyPress:
-				printf("KeyPress\n");
-				break;
-			case KeyRelease:
-				printf("KeyRelease\n");
-				break;
-			case ButtonPress:
-				printf("ButtonPress\n");
-				break;
-			case ButtonRelease:
-				printf("ButtonRelease\n");
-				break;
-		}
-		// break;
-	}
 }
