@@ -76,10 +76,11 @@ enum _KEY_EVENT {
 	KEY_EVENT_REPEATED = 2,
 };
 enum _KEY_MOVE {
-	KEY_MOVE_UP = KEY_I,
-	KEY_MOVE_DOWN = KEY_K,
+	// my j, k, h, l keys
+	KEY_MOVE_UP = KEY_V,
+	KEY_MOVE_DOWN = KEY_C,
 	KEY_MOVE_LEFT = KEY_J,
-	KEY_MOVE_RIGHT = KEY_L,
+	KEY_MOVE_RIGHT = KEY_P,
 };
 static const char* const evval[3] = {"RELEASED", "PRESSED ", "REPEATED"};
 void printKey(struct input_event ev) {
@@ -88,7 +89,7 @@ void printKey(struct input_event ev) {
 
 void handleKeyMove(struct input_event ev, bool* pressed, int* delta,
 				   bool positive) {
-	int step = 10;
+	int step = 20;
 	if (ev.value == KEY_EVENT_RELEASED) {
 		*pressed = false;
 		*delta = 0;
