@@ -70,28 +70,35 @@ void moveMouse(int dx, int dy) {
 	XCloseDisplay(display);
 }
 
-enum KEY_EVENT {
+enum _KEY_EVENT {
 	KEY_EVENT_RELEASED = 0,
 	KEY_EVENT_PRESSED = 1,
 	KEY_EVENT_REPEATED = 2,
 };
-enum KEY_MOVE {
-	KEY_MOVE_UP = KEY_W,
-	KEY_MOVE_DOWN = KEY_S,
-	KEY_MOVE_LEFT = KEY_A,
-	KEY_MOVE_RIGHT = KEY_D,
+enum _KEY_MOVE {
+	KEY_MOVE_UP = KEY_I,
+	KEY_MOVE_DOWN = KEY_K,
+	KEY_MOVE_LEFT = KEY_J,
+	KEY_MOVE_RIGHT = KEY_L,
 };
 static const char* const evval[3] = {"RELEASED", "PRESSED ", "REPEATED"};
 void printKey(struct input_event ev) {
 	printf("%s 0x%04x (%d)\n", evval[ev.value], (int)ev.code, (int)ev.code);
 }
 
-void handleKeyMove(struct input_event ev, int* dp, int delta) {
-	if (ev.value == KEY_EVENT_PRESSED) {
-		(*dp) += delta;
-	} else if (ev.value == KEY_EVENT_RELEASED) {
-		(*dp) = 0;
-		(*dp) -= delta;
+void handleKeyMove(struct input_event ev, bool* pressed, int* delta,
+				   bool positive) {
+	int step = 10;
+	if (ev.value == KEY_EVENT_RELEASED) {
+		*pressed = false;
+		*delta = 0;
+	} else {
+		*pressed = true;
+		if (positive) {
+			*delta += step;
+		} else {
+			*delta -= step;
+		}
 	}
 }
 
@@ -109,8 +116,10 @@ int input() {
 
 	int dx = 0;
 	int dy = 0;
-	int totalDx = 0;
-	int totalDy = 0;
+	bool upPressed = false;
+	bool downPressed = false;
+	bool leftPressed = false;
+	bool rightPressed = false;
 
 	while (true) {
 		n = read(fd, &ev, sizeof(ev));
@@ -128,20 +137,26 @@ int input() {
 			continue;
 		}
 
-		printKey(ev);
+		// printKey(ev);
 		switch (ev.code) {
 			case KEY_MOVE_UP:
-				handleKeyMove(ev, &dy, -1);
+				handleKeyMove(ev, &upPressed, &dy, false);
 				break;
 			case KEY_MOVE_DOWN:
-				handleKeyMove(ev, &dy, 1);
+				handleKeyMove(ev, &downPressed, &dy, true);
 				break;
 			case KEY_MOVE_LEFT:
-				handleKeyMove(ev, &dx, -1);
+				handleKeyMove(ev, &leftPressed, &dx, false);
 				break;
 			case KEY_MOVE_RIGHT:
-				handleKeyMove(ev, &dx, 1);
+				handleKeyMove(ev, &rightPressed, &dx, true);
 				break;
+		}
+		if (leftPressed && rightPressed) {
+			dx = 0;
+		}
+		if (upPressed && downPressed) {
+			dy = 0;
 		}
 		if (dx != 0 || dy != 0) {
 			moveMouse(dx, dy);
