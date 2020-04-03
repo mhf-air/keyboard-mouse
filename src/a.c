@@ -114,7 +114,9 @@ int input() {
 	bool downPressed = false;
 	bool leftPressed = false;
 	bool rightPressed = false;
+
 	bool inMouseMode = false;
+	// bool f1Pressed = false;
 
 	Display* display = XOpenDisplay(NULL);
 	if (display == NULL) {
@@ -154,6 +156,19 @@ int input() {
 			}
 		} else if (!inMouseMode) {
 			continue;
+			/* } else if (ev.code == KEY_F1 &&
+					   ev.value == KEY_EVENT_RELEASED) {  // pressed F1
+
+				if (f1Pressed) {
+					inMouseMode = true;
+					XGrabKeyboard(display, rootWindow, true, GrabModeAsync,
+								  GrabModeAsync, CurrentTime);
+				} else {
+					inMouseMode = false;
+					XUngrabKeyboard(display, CurrentTime);
+					XFlush(display);
+				}
+				f1Pressed = !f1Pressed; */
 		}
 
 		switch (ev.code) {
