@@ -60,7 +60,7 @@
 	}
 } */
 
-#define KEY_TOGGLE_MOUSE_MODE KEY_M
+#define KEY_TOGGLE_MOUSE_MODE KEY_LEFTMETA
 
 enum _KEY_EVENT {
 	KEY_EVENT_RELEASED = 0,
@@ -95,23 +95,14 @@ void handleKeyMove(struct input_event ev, bool* pressed, int* delta,
 	}
 }
 
-void moveMouse(int dx, int dy) {
-	Display* display = XOpenDisplay(NULL);
-	if (display == NULL) {
-		fprintf(stderr, "error: no display\n");
-		exit(1);
-	}
+void moveMouse(Display* display, int dx, int dy) {
 	XWarpPointer(display, None, None, 0, 0, 0, 0, dx, dy);
-	XCloseDisplay(display);
+	XFlush(display);
 }
 
 int input() {
 	const char* dev = "/dev/input/by-id/usb-046a_0011-event-kbd";
-	struct input_event ev;
-	ssize_t n;
-	int fd;
-
-	fd = open(dev, O_RDONLY);
+	int fd = open(dev, O_RDONLY);
 	if (fd == -1) {
 		fprintf(stderr, "Cannot open %s: %s.\n", dev, strerror(errno));
 		return EXIT_FAILURE;
@@ -132,6 +123,8 @@ int input() {
 	}
 	Window rootWindow = DefaultRootWindow(display);
 
+	struct input_event ev;
+	ssize_t n;
 	while (true) {
 		n = read(fd, &ev, sizeof(ev));
 		if (n == (ssize_t)-1) {
@@ -184,9 +177,11 @@ int input() {
 			dy = 0;
 		}
 		if (dx != 0 || dy != 0) {
-			moveMouse(dx, dy);
+			moveMouse(display, dx, dy);
 		}
 	}
+
+	XCloseDisplay(display);
 	fflush(stdout);
 	fprintf(stderr, "%s.\n", strerror(errno));
 	return EXIT_FAILURE;
