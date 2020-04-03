@@ -16,6 +16,8 @@ all: $(MAIN)
 
 $(MAIN): src/a.c src/a.h
 	$(CC) -o $(MAIN) src/a.c $(INCLUDE) $(LINK)
+	sudo chown root:root $(MAIN)
+	sudo chmod 4775 $(MAIN)
 
 # ================================================================================
 .PHONY: clean

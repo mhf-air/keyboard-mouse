@@ -36,12 +36,18 @@ void printKey(struct input_event ev) {
 }
 
 void handleKeyMove(struct input_event ev, bool* pressed, int* delta,
-				   bool positive) {
-	int step = 20;
+				   bool positive, int* acc) {
+	int step = 11;
 	if (ev.value == KEY_EVENT_RELEASED) {
 		*pressed = false;
 		*delta = 0;
+		*acc = 0;
 	} else {
+		if (ev.value == KEY_EVENT_REPEATED) {
+			*acc += 1;
+			step += *acc;
+		}
+
 		*pressed = true;
 		if (positive) {
 			*delta += step;
@@ -81,6 +87,7 @@ int main(void) {
 		return EXIT_FAILURE;
 	}
 
+	int acc = 0;
 	int dx = 0;
 	int dy = 0;
 	bool upPressed = false;
@@ -146,16 +153,16 @@ int main(void) {
 
 		switch (ev.code) {
 			case KEY_MOVE_UP:
-				handleKeyMove(ev, &upPressed, &dy, false);
+				handleKeyMove(ev, &upPressed, &dy, false, &acc);
 				break;
 			case KEY_MOVE_DOWN:
-				handleKeyMove(ev, &downPressed, &dy, true);
+				handleKeyMove(ev, &downPressed, &dy, true, &acc);
 				break;
 			case KEY_MOVE_LEFT:
-				handleKeyMove(ev, &leftPressed, &dx, false);
+				handleKeyMove(ev, &leftPressed, &dx, false, &acc);
 				break;
 			case KEY_MOVE_RIGHT:
-				handleKeyMove(ev, &rightPressed, &dx, true);
+				handleKeyMove(ev, &rightPressed, &dx, true, &acc);
 				break;
 
 			case KEY_MOUSE_LEFT:
