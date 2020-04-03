@@ -7,60 +7,10 @@
 #include <errno.h>
 #include <linux/input.h>
 #include <X11/Xlib.h>
+#include <X11/extensions/XTest.h>
 
-/* void keyboard(Display* display) {
-	long mask = KeyPressMask | KeyReleaseMask | ButtonPressMask |
-		ButtonReleaseMask | FocusChangeMask;
-	Window root = DefaultRootWindow(display);
-
-	Window focused;
-	int revert_to;
-	XGetInputFocus(display, &focused, &revert_to);
-	XSelectInput(display, focused, mask);
-	printf("start %ld\n", focused);
-
-	XEvent event;
-	while (true) {
-		printf("before\n");
-		XNextEvent(display, &event);
-		printf("after\n");
-		// printf("%d\n", event.type);
-
-		switch (event.type) {
-			case KeyPress:
-				printf("KeyPress\n");
-				break;
-			case KeyRelease:
-				printf("KeyRelease\n");
-				break;
-			case ButtonPress:
-				printf("ButtonPress\n");
-				break;
-			case ButtonRelease:
-				printf("ButtonRelease\n");
-				break;
-			case FocusIn:
-				XGetInputFocus(display, &focused, &revert_to);
-				printf("FocusIn %ld %ld\n", event.xfocus.window, focused);
-				XSelectInput(display, focused, mask);
-				// XSelectInput(display, event.xfocus.window, mask);
-				break;
-			case FocusOut:
-				if (focused != root) {
-					XSelectInput(display, focused, 0);
-				}
-				XGetInputFocus(display, &focused, &revert_to);
-				printf("FocusOut %ld -> %ld\n", event.xfocus.window, focused);
-				if (focused == PointerRoot) {
-					focused = root;
-				}
-				XSelectInput(display, focused, mask);
-				break;
-		}
-	}
-} */
-
-#define KEY_TOGGLE_MOUSE_MODE KEY_LEFTMETA
+// #define KEY_TOGGLE_MOUSE_MODE KEY_LEFTMETA
+#define KEY_TOGGLE_MOUSE_MODE KEY_ESC
 
 enum _KEY_EVENT {
 	KEY_EVENT_RELEASED = 0,
@@ -73,6 +23,12 @@ enum _KEY_MOVE {
 	KEY_MOVE_DOWN = KEY_C,
 	KEY_MOVE_LEFT = KEY_J,
 	KEY_MOVE_RIGHT = KEY_P,
+
+	KEY_MOUSE_LEFT = KEY_SPACE,
+	KEY_MOUSE_MIDDLE = KEY_K,
+	KEY_MOUSE_RIGHT = KEY_L,
+	KEY_MOUSE_SCROLL_FORWARD = KEY_9,
+	KEY_MOUSE_SCROLL_BACKWARD = KEY_APOSTROPHE,
 };
 static const char* const evval[3] = {"RELEASED", "PRESSED ", "REPEATED"};
 void printKey(struct input_event ev) {
@@ -100,7 +56,24 @@ void moveMouse(Display* display, int dx, int dy) {
 	XFlush(display);
 }
 
-int input() {
+void clickMouse(Display* display, struct input_event ev, int button) {
+	if (ev.value == KEY_EVENT_PRESSED) {
+		XTestFakeButtonEvent(display, button, true, CurrentTime);
+	} else if (ev.value == KEY_EVENT_RELEASED) {
+		XTestFakeButtonEvent(display, button, false, CurrentTime);
+	} else if (ev.value == KEY_EVENT_REPEATED) {
+		switch (button) {
+			case 4:
+			case 5:
+				XTestFakeButtonEvent(display, button, true, CurrentTime);
+				XTestFakeButtonEvent(display, button, false, CurrentTime);
+				break;
+		}
+	}
+	XFlush(display);
+}
+
+int main(void) {
 	const char* dev = "/dev/input/by-id/usb-046a_0011-event-kbd";
 	int fd = open(dev, O_RDONLY);
 	if (fd == -1) {
@@ -184,6 +157,22 @@ int input() {
 			case KEY_MOVE_RIGHT:
 				handleKeyMove(ev, &rightPressed, &dx, true);
 				break;
+
+			case KEY_MOUSE_LEFT:
+				clickMouse(display, ev, 1);
+				break;
+			case KEY_MOUSE_MIDDLE:
+				clickMouse(display, ev, 2);
+				break;
+			case KEY_MOUSE_RIGHT:
+				clickMouse(display, ev, 3);
+				break;
+			case KEY_MOUSE_SCROLL_FORWARD:
+				clickMouse(display, ev, 4);
+				break;
+			case KEY_MOUSE_SCROLL_BACKWARD:
+				clickMouse(display, ev, 5);
+				break;
 		}
 		if (leftPressed && rightPressed) {
 			dx = 0;
@@ -200,10 +189,4 @@ int input() {
 	fflush(stdout);
 	fprintf(stderr, "%s.\n", strerror(errno));
 	return EXIT_FAILURE;
-}
-
-int main(void) {
-	input();
-
-	return 0;
 }

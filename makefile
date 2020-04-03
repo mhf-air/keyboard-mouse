@@ -6,10 +6,7 @@ INCLUDE = \
 	# -I$(GLFW)/deps -I$(GLFW)/include \
 
 LINK = \
-	`pkg-config --libs x11` \
-	# -L$(GLFW)/src \
-	# `pkg-config --static --libs vulkan glfw3 assimp glib-2.0` \
-	# -Wl,-rpath,"\$$ORIGIN/$(ASSIMP)/lib"
+	`pkg-config --libs x11 xtst`
 
 MAIN = .a
 
