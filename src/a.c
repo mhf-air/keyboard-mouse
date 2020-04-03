@@ -60,15 +60,7 @@
 	}
 } */
 
-void moveMouse(int dx, int dy) {
-	Display* display = XOpenDisplay(NULL);
-	if (display == NULL) {
-		fprintf(stderr, "error: no display\n");
-		exit(1);
-	}
-	XWarpPointer(display, None, None, 0, 0, 0, 0, dx, dy);
-	XCloseDisplay(display);
-}
+#define KEY_TOGGLE_MOUSE_MODE KEY_M
 
 enum _KEY_EVENT {
 	KEY_EVENT_RELEASED = 0,
@@ -103,6 +95,16 @@ void handleKeyMove(struct input_event ev, bool* pressed, int* delta,
 	}
 }
 
+void moveMouse(int dx, int dy) {
+	Display* display = XOpenDisplay(NULL);
+	if (display == NULL) {
+		fprintf(stderr, "error: no display\n");
+		exit(1);
+	}
+	XWarpPointer(display, None, None, 0, 0, 0, 0, dx, dy);
+	XCloseDisplay(display);
+}
+
 int input() {
 	const char* dev = "/dev/input/by-id/usb-046a_0011-event-kbd";
 	struct input_event ev;
@@ -121,6 +123,14 @@ int input() {
 	bool downPressed = false;
 	bool leftPressed = false;
 	bool rightPressed = false;
+	bool inMouseMode = false;
+
+	Display* display = XOpenDisplay(NULL);
+	if (display == NULL) {
+		fprintf(stderr, "error: no display\n");
+		exit(1);
+	}
+	Window rootWindow = DefaultRootWindow(display);
 
 	while (true) {
 		n = read(fd, &ev, sizeof(ev));
@@ -137,8 +147,22 @@ int input() {
 		if (ev.type != EV_KEY || ev.value < 0 && ev.value > 2) {
 			continue;
 		}
-
 		// printKey(ev);
+
+		if (ev.code == KEY_TOGGLE_MOUSE_MODE &&
+			ev.value == KEY_EVENT_RELEASED) {
+			inMouseMode = !inMouseMode;
+			if (inMouseMode) {
+				XGrabKeyboard(display, rootWindow, true, GrabModeAsync,
+							  GrabModeAsync, CurrentTime);
+			} else {
+				XUngrabKeyboard(display, CurrentTime);
+				XFlush(display);
+			}
+		} else if (!inMouseMode) {
+			continue;
+		}
+
 		switch (ev.code) {
 			case KEY_MOVE_UP:
 				handleKeyMove(ev, &upPressed, &dy, false);
