@@ -43,10 +43,8 @@ void handleKeyMove(struct input_event ev, bool* pressed, int* delta,
 		*delta = 0;
 		*acc = 0;
 	} else {
-		if (ev.value == KEY_EVENT_REPEATED) {
-			*acc += 1;
-			step += *acc;
-		}
+		*acc += 2;
+		step += *acc;
 
 		*pressed = true;
 		if (positive) {
@@ -58,7 +56,33 @@ void handleKeyMove(struct input_event ev, bool* pressed, int* delta,
 }
 
 void moveMouse(Display* display, int dx, int dy) {
-	XWarpPointer(display, None, None, 0, 0, 0, 0, dx, dy);
+	if (dx == 0 && dy == 0) {
+		return;
+	}
+	int len = dx;
+	if (dx == 0) {
+		len = dy;
+	}
+	if (len < 0) {
+		len = -len;
+	}
+
+	int stepX = 1;
+	if (dx < 0) {
+		stepX = -1;
+	} else if (dx == 0) {
+		stepX = 0;
+	}
+	int stepY = 1;
+	if (dy < 0) {
+		stepY = -1;
+	} else if (dy == 0) {
+		stepY = 0;
+	}
+
+	for (int i = 0; i < len; i++) {
+		XWarpPointer(display, None, None, 0, 0, 0, 0, stepX, stepY);
+	}
 	XFlush(display);
 }
 
@@ -187,9 +211,7 @@ int main(void) {
 		if (upPressed && downPressed) {
 			dy = 0;
 		}
-		if (dx != 0 || dy != 0) {
-			moveMouse(display, dx, dy);
-		}
+		moveMouse(display, dx, dy);
 	}
 
 	XCloseDisplay(display);
