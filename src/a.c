@@ -9,8 +9,7 @@
 #include <X11/Xlib.h>
 #include <X11/extensions/XTest.h>
 
-// #define KEY_TOGGLE_MOUSE_MODE KEY_LEFTMETA
-#define KEY_TOGGLE_MOUSE_MODE KEY_RIGHTMETA
+#define KEY_TOGGLE_MOUSE_MODE KEY_LEFTMETA
 // #define KEY_TOGGLE_MOUSE_MODE KEY_ESC
 
 enum _KEY_EVENT {
