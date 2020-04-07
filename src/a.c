@@ -18,12 +18,12 @@ enum _KEY_EVENT {
 };
 
 static const char* const evval[3] = {"RELEASED", "PRESSED ", "REPEATED"};
-void printKey(struct input_event ev) {
+static void printKey(struct input_event ev) {
 	printf("%s 0x%04x (%d)\n", evval[ev.value], (int)ev.code, (int)ev.code);
 }
 
-void handleKeyMove(struct input_event ev, bool* pressed, int* delta,
-				   bool positive, int* acc) {
+static void handleKeyMove(struct input_event ev, bool* pressed, int* delta,
+						  bool positive, int* acc) {
 	int step = 11;
 	if (ev.value == KEY_EVENT_RELEASED) {
 		*pressed = false;
@@ -42,7 +42,7 @@ void handleKeyMove(struct input_event ev, bool* pressed, int* delta,
 	}
 }
 
-void moveMouse(Display* display, int dx, int dy) {
+static void moveMouse(Display* display, int dx, int dy) {
 	if (dx == 0 && dy == 0) {
 		return;
 	}
@@ -74,7 +74,7 @@ void moveMouse(Display* display, int dx, int dy) {
 }
 
 // requires libxtst-dev for <X11/extensions/XTest.h>
-void clickMouse(Display* display, struct input_event ev, int button) {
+static void clickMouse(Display* display, struct input_event ev, int button) {
 	if (ev.value == KEY_EVENT_PRESSED) {
 		XTestFakeButtonEvent(display, button, true, CurrentTime);
 	} else if (ev.value == KEY_EVENT_RELEASED) {
@@ -91,8 +91,14 @@ void clickMouse(Display* display, struct input_event ev, int button) {
 	XFlush(display);
 }
 
-int main(void) {
-	const char* dev = "/dev/input/by-id/usb-046a_0011-event-kbd";
+int main(int argc, char* argv[]) {
+	char* dev;
+	if (argc < 2) {
+		dev = DEFAULT_KEYBOARD_INPUT_FILE;
+	} else {
+		dev = argv[1];
+	}
+
 	int fd = open(dev, O_RDONLY);
 	if (fd == -1) {
 		fprintf(stderr, "Cannot open %s: %s.\n", dev, strerror(errno));

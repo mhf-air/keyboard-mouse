@@ -12,7 +12,7 @@ println() {
 #
 
 main() {
-	./.a
+	./.a "$@"
 }
 
-main
+main "$@"

@@ -1,5 +1,9 @@
 /*
+	usage:
+		keyboard-mouse /dev/input/by-id/sth-event-kbd
  */
+
+#define DEFAULT_KEYBOARD_INPUT_FILE "/dev/input/by-id/usb-046a_0011-event-kbd"
 
 #define KEY_TOGGLE_MOUSE_MODE KEY_LEFTMETA
 
