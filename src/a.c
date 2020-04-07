@@ -9,39 +9,14 @@
 #include <X11/Xlib.h>
 #include <X11/extensions/XTest.h>
 
-#define KEY_TOGGLE_MOUSE_MODE KEY_LEFTMETA
-// #define KEY_TOGGLE_MOUSE_MODE KEY_ESC
+#include "a.h"
 
 enum _KEY_EVENT {
 	KEY_EVENT_RELEASED = 0,
 	KEY_EVENT_PRESSED = 1,
 	KEY_EVENT_REPEATED = 2,
 };
-enum _KEY_MOVE {
-	// my j, k, h, l keys
-	/* KEY_MOVE_UP = KEY_V,
-	KEY_MOVE_DOWN = KEY_C,
-	KEY_MOVE_LEFT = KEY_J,
-	KEY_MOVE_RIGHT = KEY_P,
 
-	KEY_MOUSE_LEFT = KEY_SPACE,
-	KEY_MOUSE_MIDDLE = KEY_K,
-	KEY_MOUSE_RIGHT = KEY_L,
-	KEY_MOUSE_SCROLL_FORWARD = KEY_9,
-	KEY_MOUSE_SCROLL_BACKWARD = KEY_APOSTROPHE, */
-
-	// i, j, k, l
-	KEY_MOVE_UP = KEY_I,
-	KEY_MOVE_DOWN = KEY_K,
-	KEY_MOVE_LEFT = KEY_J,
-	KEY_MOVE_RIGHT = KEY_L,
-
-	KEY_MOUSE_LEFT = KEY_SPACE,
-	KEY_MOUSE_MIDDLE = KEY_P,
-	KEY_MOUSE_RIGHT = KEY_O,
-	KEY_MOUSE_SCROLL_FORWARD = KEY_9,
-	KEY_MOUSE_SCROLL_BACKWARD = KEY_APOSTROPHE,
-};
 static const char* const evval[3] = {"RELEASED", "PRESSED ", "REPEATED"};
 void printKey(struct input_event ev) {
 	printf("%s 0x%04x (%d)\n", evval[ev.value], (int)ev.code, (int)ev.code);
@@ -98,6 +73,7 @@ void moveMouse(Display* display, int dx, int dy) {
 	XFlush(display);
 }
 
+// requires libxtst-dev for <X11/extensions/XTest.h>
 void clickMouse(Display* display, struct input_event ev, int button) {
 	if (ev.value == KEY_EVENT_PRESSED) {
 		XTestFakeButtonEvent(display, button, true, CurrentTime);
@@ -132,7 +108,6 @@ int main(void) {
 	bool rightPressed = false;
 
 	bool inMouseMode = false;
-	// bool f1Pressed = false;
 
 	Display* display = XOpenDisplay(NULL);
 	if (display == NULL) {
@@ -160,31 +135,20 @@ int main(void) {
 		}
 		// printKey(ev);
 
-		if (ev.code == KEY_TOGGLE_MOUSE_MODE &&
-			ev.value == KEY_EVENT_RELEASED) {
-			inMouseMode = !inMouseMode;
-			if (inMouseMode) {
+		if (ev.code == KEY_TOGGLE_MOUSE_MODE) {
+			if (ev.value == KEY_EVENT_PRESSED) {
+				inMouseMode = true;
 				XGrabKeyboard(display, rootWindow, true, GrabModeAsync,
 							  GrabModeAsync, CurrentTime);
-			} else {
+			} else if (ev.value == KEY_EVENT_RELEASED) {
+				inMouseMode = false;
 				XUngrabKeyboard(display, CurrentTime);
 				XFlush(display);
 			}
-		} else if (!inMouseMode) {
 			continue;
-			/* } else if (ev.code == KEY_F1 &&
-					   ev.value == KEY_EVENT_RELEASED) {  // pressed F1
-
-				if (f1Pressed) {
-					inMouseMode = true;
-					XGrabKeyboard(display, rootWindow, true, GrabModeAsync,
-								  GrabModeAsync, CurrentTime);
-				} else {
-					inMouseMode = false;
-					XUngrabKeyboard(display, CurrentTime);
-					XFlush(display);
-				}
-				f1Pressed = !f1Pressed; */
+		}
+		if (!inMouseMode) {
+			continue;
 		}
 
 		switch (ev.code) {
