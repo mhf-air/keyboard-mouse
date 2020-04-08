@@ -3,6 +3,8 @@
 #include <string.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <signal.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <linux/input.h>
@@ -18,12 +20,12 @@ enum _KEY_EVENT {
 };
 
 static const char* const evval[3] = {"RELEASED", "PRESSED ", "REPEATED"};
-static void printKey(struct input_event ev) {
+static void print_key(struct input_event ev) {
 	printf("%s 0x%04x (%d)\n", evval[ev.value], (int)ev.code, (int)ev.code);
 }
 
-static void handleKeyMove(struct input_event ev, bool* pressed, int* delta,
-						  bool positive, int* acc) {
+static void handle_key_move(struct input_event ev, bool* pressed, int* delta,
+							bool positive, int* acc) {
 	int step = 11;
 	if (ev.value == KEY_EVENT_RELEASED) {
 		*pressed = false;
@@ -42,7 +44,7 @@ static void handleKeyMove(struct input_event ev, bool* pressed, int* delta,
 	}
 }
 
-static void moveMouse(Display* display, int dx, int dy) {
+static void move_mouse(Display* display, int dx, int dy) {
 	if (dx == 0 && dy == 0) {
 		return;
 	}
@@ -54,27 +56,27 @@ static void moveMouse(Display* display, int dx, int dy) {
 		len = -len;
 	}
 
-	int stepX = 1;
+	int step_x = 1;
 	if (dx < 0) {
-		stepX = -1;
+		step_x = -1;
 	} else if (dx == 0) {
-		stepX = 0;
+		step_x = 0;
 	}
-	int stepY = 1;
+	int step_y = 1;
 	if (dy < 0) {
-		stepY = -1;
+		step_y = -1;
 	} else if (dy == 0) {
-		stepY = 0;
+		step_y = 0;
 	}
 
 	for (int i = 0; i < len; i++) {
-		XWarpPointer(display, None, None, 0, 0, 0, 0, stepX, stepY);
+		XWarpPointer(display, None, None, 0, 0, 0, 0, step_x, step_y);
 	}
 	XFlush(display);
 }
 
 // requires libxtst-dev for <X11/extensions/XTest.h>
-static void clickMouse(Display* display, struct input_event ev, int button) {
+static void click_mouse(Display* display, struct input_event ev, int button) {
 	if (ev.value == KEY_EVENT_PRESSED) {
 		XTestFakeButtonEvent(display, button, true, CurrentTime);
 	} else if (ev.value == KEY_EVENT_RELEASED) {
@@ -91,14 +93,89 @@ static void clickMouse(Display* display, struct input_event ev, int button) {
 	XFlush(display);
 }
 
-int main(int argc, char* argv[]) {
-	char* dev;
-	if (argc < 2) {
-		dev = DEFAULT_KEYBOARD_INPUT_FILE;
-	} else {
-		dev = argv[1];
+static const char* PID_FILE = "/var/run/keyboard-mouse.pid";
+static void sig_handler(int sig, siginfo_t* siginfo, void* context) {
+	if (sig == SIGINT) {
+		int r = remove(PID_FILE);
+		if (r != 0) {
+			fprintf(stderr, "Cannot remove file: %s\n", PID_FILE);
+		}
+		exit(EXIT_FAILURE);
+	}
+}
+
+static void one_instance(bool skip_old_pid) {
+	struct sigaction act;
+	memset(&act, 0, sizeof(act));
+	act.sa_sigaction = &sig_handler;
+	act.sa_flags = SA_SIGINFO;
+	if (sigaction(SIGINT, &act, NULL) == -1) {
+		fprintf(stderr, "Cannot catch SIGINT\n");
+		exit(EXIT_FAILURE);
 	}
 
+	FILE* fp;
+
+	if (!skip_old_pid) {
+		fp = fopen(PID_FILE, "r");
+		if (fp != NULL) {
+			pid_t old_pid;
+			int r = fscanf(fp, "%d", &old_pid);
+			if (r != EOF) {
+				r = kill(old_pid, SIGTERM);
+				if (r == -1) {
+					fprintf(stderr, "Cannot kill process %d: %s.\n", old_pid,
+							strerror(errno));
+					exit(EXIT_FAILURE);
+				}
+			}
+			fclose(fp);
+		}
+	}
+
+	fp = fopen(PID_FILE, "w+");
+	if (fp == NULL) {
+		fprintf(stderr, "Cannot open %s: %s.\n", PID_FILE, strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+
+	pid_t pid = getpid();
+	int r = fprintf(fp, "%d", pid);
+	if (r < 0) {
+		fprintf(stderr, "Cannot write to %s: %s.\n", PID_FILE, strerror(errno));
+	}
+
+	fclose(fp);
+}
+
+int main(int argc, char* argv[]) {
+	bool skip_old_pid = false;
+	char* dev = "";
+
+	// process command line flags
+	int opt;
+	while ((opt = getopt(argc, argv, ":sf:")) != -1) {
+		switch (opt) {
+			case 's':
+				skip_old_pid = true;
+				break;
+			case 'f':
+				dev = optarg;
+				break;
+			case ':':
+				printf("option needs a value\n");
+				break;
+			case '?':
+				printf("unknown option: %c\n", optopt);
+				break;
+		}
+	}
+	if (strlen(dev) == 0) {
+		dev = DEFAULT_KEYBOARD_INPUT_FILE;
+	}
+	one_instance(skip_old_pid);
+
+	// open keyboard device
 	int fd = open(dev, O_RDONLY);
 	if (fd == -1) {
 		fprintf(stderr, "Cannot open %s: %s.\n", dev, strerror(errno));
@@ -108,19 +185,19 @@ int main(int argc, char* argv[]) {
 	int acc = 0;
 	int dx = 0;
 	int dy = 0;
-	bool upPressed = false;
-	bool downPressed = false;
-	bool leftPressed = false;
-	bool rightPressed = false;
+	bool up_pressed = false;
+	bool down_pressed = false;
+	bool left_pressed = false;
+	bool right_pressed = false;
 
-	bool inMouseMode = false;
+	bool in_mouse_mode = false;
 
 	Display* display = XOpenDisplay(NULL);
 	if (display == NULL) {
 		fprintf(stderr, "error: no display\n");
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
-	Window rootWindow = DefaultRootWindow(display);
+	Window root_window = DefaultRootWindow(display);
 
 	struct input_event ev;
 	ssize_t n;
@@ -139,61 +216,61 @@ int main(int argc, char* argv[]) {
 		if (ev.type != EV_KEY || ev.value < 0 && ev.value > 2) {
 			continue;
 		}
-		// printKey(ev);
+		// print_key(ev);
 
 		if (ev.code == KEY_TOGGLE_MOUSE_MODE) {
 			if (ev.value == KEY_EVENT_PRESSED) {
-				inMouseMode = true;
-				XGrabKeyboard(display, rootWindow, true, GrabModeAsync,
+				in_mouse_mode = true;
+				XGrabKeyboard(display, root_window, true, GrabModeAsync,
 							  GrabModeAsync, CurrentTime);
 			} else if (ev.value == KEY_EVENT_RELEASED) {
-				inMouseMode = false;
+				in_mouse_mode = false;
 				XUngrabKeyboard(display, CurrentTime);
 				XFlush(display);
 			}
 			continue;
 		}
-		if (!inMouseMode) {
+		if (!in_mouse_mode) {
 			continue;
 		}
 
 		switch (ev.code) {
 			case KEY_MOVE_UP:
-				handleKeyMove(ev, &upPressed, &dy, false, &acc);
+				handle_key_move(ev, &up_pressed, &dy, false, &acc);
 				break;
 			case KEY_MOVE_DOWN:
-				handleKeyMove(ev, &downPressed, &dy, true, &acc);
+				handle_key_move(ev, &down_pressed, &dy, true, &acc);
 				break;
 			case KEY_MOVE_LEFT:
-				handleKeyMove(ev, &leftPressed, &dx, false, &acc);
+				handle_key_move(ev, &left_pressed, &dx, false, &acc);
 				break;
 			case KEY_MOVE_RIGHT:
-				handleKeyMove(ev, &rightPressed, &dx, true, &acc);
+				handle_key_move(ev, &right_pressed, &dx, true, &acc);
 				break;
 
 			case KEY_MOUSE_LEFT:
-				clickMouse(display, ev, 1);
+				click_mouse(display, ev, 1);
 				break;
 			case KEY_MOUSE_MIDDLE:
-				clickMouse(display, ev, 2);
+				click_mouse(display, ev, 2);
 				break;
 			case KEY_MOUSE_RIGHT:
-				clickMouse(display, ev, 3);
+				click_mouse(display, ev, 3);
 				break;
 			case KEY_MOUSE_SCROLL_FORWARD:
-				clickMouse(display, ev, 4);
+				click_mouse(display, ev, 4);
 				break;
 			case KEY_MOUSE_SCROLL_BACKWARD:
-				clickMouse(display, ev, 5);
+				click_mouse(display, ev, 5);
 				break;
 		}
-		if (leftPressed && rightPressed) {
+		if (left_pressed && right_pressed) {
 			dx = 0;
 		}
-		if (upPressed && downPressed) {
+		if (up_pressed && down_pressed) {
 			dy = 0;
 		}
-		moveMouse(display, dx, dy);
+		move_mouse(display, dx, dy);
 	}
 
 	XCloseDisplay(display);
