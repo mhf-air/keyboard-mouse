@@ -1,5 +1,7 @@
-# try to control mouse using keyboard
+# control mouse using keyboard
 
-### it consists of two parts: listen to keyboard and move the mouse
+## it consists of two parts: listen to the keyboard and move the mouse
 
-### TODO: listen to keyboard
+### TODO:
+    * highlight row and column under pointer
+    * come up with a quicker way to move the pointer from point A to point B
